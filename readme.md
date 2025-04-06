@@ -52,6 +52,9 @@ A comprehensive attendance management system that uses facial recognition to mar
 ## Installation
 
 1. Clone the repository
+   ```
+   git clone https://github.com/HetPatel-0209/Project
+   ```
 2. Create a virtual environment:
    ```
    python -m venv env
