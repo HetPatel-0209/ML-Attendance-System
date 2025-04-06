@@ -53,7 +53,7 @@ A comprehensive attendance management system that uses facial recognition to mar
 
 1. Clone the repository
    ```
-   git clone https://github.com/HetPatel-0209/Project
+   git clone https://github.com/HetPatel-0209/ML-Attendance-System.git
    ```
 2. Create a virtual environment:
    ```
