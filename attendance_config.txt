@@ -1,0 +1,5 @@
+year=2025
+program=IT
+semester=sem6
+subject=ML
+filepath=data/attendanceData/2025/IT/sem6/ML.xlsx
