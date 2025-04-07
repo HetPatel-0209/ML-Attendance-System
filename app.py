@@ -8,6 +8,7 @@ import os
 import openpyxl
 import pandas as pd
 import sys
+import subprocess
 
 # --- Function Definitions FIRST ---
 def load_student_details():
@@ -100,6 +101,42 @@ def encoding1(images):
         encode.append(unk_encoding)
     return encode
 
+def launch_registration(face_image):
+    """Launch the registration process for an unknown face"""
+    # Save the current frame temporarily
+    temp_path = "temp_unknown_face.jpg"
+    cv2.imwrite(temp_path, face_image)
+    
+    # Pause the current application
+    print("Unknown face detected! Launching registration process...")
+    
+    # Start register.py as a separate process
+    try:
+        subprocess.run(['python', 'register.py'], check=True)
+        
+        # After registration, reload the face encodings
+        global images, names, encodelist
+        images = []
+        names = []
+        path = os.path.join('faces', '*.*')
+        for file in glob.glob(path):
+            image = cv2.imread(file)
+            a = os.path.basename(file)
+            b = os.path.splitext(a)[0]
+            names.append(b)
+            images.append(image)
+            
+        encodelist = encoding1(images)
+        
+        # Clean up the temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return True
+    except subprocess.SubprocessError as e:
+        print(f"Error launching registration: {e}")
+        return False
+
 # --- Initialization and Main Logic AFTER functions ---
 now = datetime.now()
 dtString = now.strftime("%H:%M")
@@ -143,28 +180,75 @@ while running:
     curframe_encoding = face_recognition.face_encodings(frame1, face_locations)
 
     for encodeface, facelocation in zip(curframe_encoding, face_locations):
-        distance = face_recognition.face_distance(encodelist, encodeface)
-        match_index = np.argmin(distance)
-        name = names[match_index]
-        current_time = datetime.now().timestamp()
-        if name not in recently_recognized or (current_time - recently_recognized[name]) > 60:
-            mark_attendance(name)
-            recently_recognized[name] = current_time
-        student_details = get_student_details(name)
-        x1, y1, x2, y2 = facelocation
-        x1, y1, x2, y2 = x1*4, y1*4, x2*4, y2*4
-        cv2.rectangle(frame, (y1, x1), (y2, x2), (0,0,255), 3)
-        if student_details:
-            y_offset = x2 + 30
-            cv2.putText(frame, f"Name: {name}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
-            if 'student_id' in student_details:
-                y_offset += 25
-                cv2.putText(frame, f"ID: {student_details['student_id']}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
-            if 'course' in student_details:
-                y_offset += 25
-                cv2.putText(frame, f"Course: {student_details['course']}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
+        # Check if this face matches any known faces
+        if len(encodelist) > 0:  # Make sure we have faces in our database
+            distances = face_recognition.face_distance(encodelist, encodeface)
+            min_distance = np.min(distances)
+            match_index = np.argmin(distances)
+            
+            # If the minimum distance is greater than threshold, consider as unknown
+            if min_distance > 0.6:  # Threshold for face recognition (adjust as needed)
+                x1, y1, x2, y2 = facelocation
+                x1, y1, x2, y2 = x1*4, y1*4, x2*4, y2*4
+                # Draw red rectangle for unknown face
+                cv2.rectangle(frame, (y1, x1), (y2, x2), (0,0,255), 3)
+                cv2.putText(frame, "Unknown", (y1, x2 + 30), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,255), 1)
+                
+                # Show prompt to register
+                cv2.putText(frame, "Press 'r' to register", (y1, x2 + 60), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,255), 1)
+                
+                # Update display before waiting for key press
+                cv2.imshow("Attendance System", frame)
+                
+                # Check for 'r' key press
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('r'):
+                    # Launch registration with the current frame
+                    face_img = frame[x1:x2, y1:y2]
+                    if launch_registration(face_img):
+                        # Registration was successful, reload encodings
+                        continue
+            else:
+                # Face is recognized, proceed with regular attendance
+                name = names[match_index]
+                current_time = datetime.now().timestamp()
+                if name not in recently_recognized or (current_time - recently_recognized[name]) > 60:
+                    mark_attendance(name)
+                    recently_recognized[name] = current_time
+                student_details = get_student_details(name)
+                x1, y1, x2, y2 = facelocation
+                x1, y1, x2, y2 = x1*4, y1*4, x2*4, y2*4
+                cv2.rectangle(frame, (y1, x1), (y2, x2), (0,0,255), 3)
+                if student_details:
+                    y_offset = x2 + 30
+                    cv2.putText(frame, f"Name: {name}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
+                    if 'student_id' in student_details:
+                        y_offset += 25
+                        cv2.putText(frame, f"ID: {student_details['student_id']}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
+                    if 'course' in student_details:
+                        y_offset += 25
+                        cv2.putText(frame, f"Course: {student_details['course']}", (y1, y_offset), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,255,0), 1)
+                else:
+                    cv2.putText(frame, name, (y2+6, x2-6), cv2.FONT_HERSHEY_COMPLEX, 1, (255,0,255), 2)
         else:
-            cv2.putText(frame, name, (y2+6, x2-6), cv2.FONT_HERSHEY_COMPLEX, 1, (255,0,255), 2)
+            # No encodings available, prompt to register the first student
+            x1, y1, x2, y2 = facelocation
+            x1, y1, x2, y2 = x1*4, y1*4, x2*4, y2*4
+            cv2.rectangle(frame, (y1, x1), (y2, x2), (0,0,255), 3)
+            cv2.putText(frame, "No students in database", (y1, x2 + 30), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,255), 1)
+            cv2.putText(frame, "Press 'r' to register", (y1, x2 + 60), cv2.FONT_HERSHEY_COMPLEX, 0.6, (0,0,255), 1)
+            
+            # Update display before waiting for key press
+            cv2.imshow("Attendance System", frame)
+            
+            # Check for 'r' key press
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('r'):
+                # Launch registration with the current frame
+                face_img = frame[x1:x2, y1:y2]
+                if launch_registration(face_img):
+                    # Registration was successful, reload encodings
+                    continue
 
     config = load_attendance_config()
     config_text = f"{config.get('program', 'IT')} - {config.get('semester', 'sem6')} - {config.get('subject', 'ML')}"

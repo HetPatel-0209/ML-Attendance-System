@@ -7,19 +7,37 @@ import os
 import csv
 import pandas as pd
 
-cap= cv2.VideoCapture(0)
-images=[]
-names=[]
+# --- Initialize variables ---
+cap = cv2.VideoCapture(0)
+images = []
+names = []
+temp_face_path = "temp_unknown_face.jpg"
+using_temp_face = False
 
+# --- Function definitions ---
 def snapshot():
-    cv2image= cv2.cvtColor(cap.read()[1],cv2.COLOR_BGR2RGB)
+    global using_temp_face
+    
+    # If we're using a loaded face, just save it
+    if using_temp_face and os.path.exists(temp_face_path):
+        img = Image.open(temp_face_path)
+        name = name_var.get()
+        os.makedirs('faces', exist_ok=True)
+        img.save(os.path.join('faces', name + '.jpg'))
+        save_student_details()
+        status_label.config(text="Student registered successfully!", fg="green")
+        return
+        
+    # Otherwise capture from camera
+    cv2image = cv2.cvtColor(cap.read()[1], cv2.COLOR_BGR2RGB)
     img = Image.fromarray(cv2image)
     face_locations = face_recognition.face_locations(cv2image)
     if face_locations:  # Only proceed if at least one face is detected
         for face_location in face_locations:
             top, right, bottom, left = face_location
             im1 = img.crop((left, top, right, bottom))
-            name=name_var.get()
+            name = name_var.get()
+            os.makedirs('faces', exist_ok=True)
             im1.save(os.path.join('faces', name + '.jpg'))
             break  # Only save the first detected face
         # Save student details once, after face is saved
@@ -34,6 +52,11 @@ def save_student_details():
     email = email_var.get()
     phone = phone_var.get()
     
+    # Validate required fields
+    if not student_id or not name:
+        status_label.config(text="Student ID and Name are required!", fg="red")
+        return
+        
     # Ensure data directory exists
     os.makedirs('data', exist_ok=True)
     
@@ -64,6 +87,10 @@ def save_student_details():
     # Save to CSV
     df.to_csv('data/students.csv', index=False)
     status_label.config(text="Student registered successfully!", fg="green")
+    
+    # Remove temp file if it exists
+    if os.path.exists(temp_face_path):
+        os.remove(temp_face_path)
 
 def updatedata():
     path = os.path.join('faces', '*.*')
@@ -76,16 +103,36 @@ def updatedata():
         print(names)
         
 def show_frames():
-   cv2image= cv2.cvtColor(cap.read()[1],cv2.COLOR_BGR2RGB)
-   img = Image.fromarray(cv2image)
-   imgtk = ImageTk.PhotoImage(image = img)
-   label.imgtk = imgtk
-   label.configure(image=imgtk)
-   label.after(10, show_frames)
+    global using_temp_face
+    
+    # If we have a temp face image, display it instead of camera feed
+    if os.path.exists(temp_face_path) and not using_temp_face:
+        using_temp_face = True
+        img = Image.open(temp_face_path)
+        imgtk = ImageTk.PhotoImage(image=img)
+        label.imgtk = imgtk
+        label.configure(image=imgtk)
+        status_label.config(text="Unknown face detected! Please enter details to register.", fg="blue")
+        return
+        
+    # Otherwise show live camera feed
+    if not using_temp_face:
+        cv2image = cv2.cvtColor(cap.read()[1], cv2.COLOR_BGR2RGB)
+        img = Image.fromarray(cv2image)
+        imgtk = ImageTk.PhotoImage(image=img)
+        label.imgtk = imgtk
+        label.configure(image=imgtk)
+        label.after(10, show_frames)
            
 def quitapp():
-    win.destroy()          
+    win.destroy()
+    
+def return_to_app():
+    # Update face database before closing
+    updatedata()
+    quitapp()
        
+# --- Setup GUI ---
 win = Tk()
 win.title("Student Registration")
 
@@ -138,8 +185,11 @@ snap_btn.grid(row=0, column=0, padx=5)
 update_btn = Button(btn_frame, text='Update Database', command=updatedata, width=15)
 update_btn.grid(row=0, column=1, padx=5)
 
+done_btn = Button(btn_frame, text='Done', command=return_to_app, width=15)
+done_btn.grid(row=0, column=2, padx=5)
+
 quit_btn = Button(btn_frame, text='Quit', command=quitapp, width=15)
-quit_btn.grid(row=0, column=2, padx=5)
+quit_btn.grid(row=0, column=3, padx=5)
 
 show_frames()
 win.mainloop()
