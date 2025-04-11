@@ -1,0 +1,7 @@
+timestamp: 20250411_164748
+year: 2025
+date: 2025-04-06
+branch: IT
+semester: 6
+subject: ML
+present_students: ['12202080601055', '12202080601044']
