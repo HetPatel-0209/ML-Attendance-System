@@ -87,14 +87,14 @@ def load_attendance_data():
 def load_student_data():
     """Load student details from CSV."""
     try:
-        return pd.read_csv('data/students.csv')
+        return pd.read_csv('data/students.csv', dtype=str)
     except (FileNotFoundError, pd.errors.EmptyDataError):
         return pd.DataFrame(columns=['student_id', 'name', 'course', 'email', 'phone'])
 
 def load_subject_data():
     """Load subject details from CSV."""
     try:
-        return pd.read_csv('data/subjects.csv')
+        return pd.read_csv('data/subjects.csv', dtype=str)
     except (FileNotFoundError, pd.errors.EmptyDataError):
         return pd.DataFrame()
 

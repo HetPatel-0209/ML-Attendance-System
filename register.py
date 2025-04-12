@@ -4,7 +4,6 @@ import cv2
 import face_recognition
 import glob
 import os
-import csv
 import pandas as pd
 
 # --- Initialize variables ---
