@@ -1,13 +1,8 @@
 import pickle
-import os
 import tkinter as tk
 from tkinter import scrolledtext, ttk
 from sklearn.metrics.pairwise import cosine_similarity
-import pandas as pd
 import numpy as np
-from datetime import datetime
-import glob
-import openpyxl
 import subprocess
 import re
 from train_chatbot import load_attendance_data, load_student_data, load_subject_data, calculate_attendance_stats
