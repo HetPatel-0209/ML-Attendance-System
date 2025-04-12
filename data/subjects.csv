@@ -1,0 +1,66 @@
+branch,semester,subject_code,subject_name,subject_abbrevation,credits,total_classes,type,type_abbreviation
+it,1,202000104,Calculus,Calculus,4,40,Regular,Reg
+it,1,202000110,Computer Programming with C,CPC,4,40,Regular,Reg
+it,1,202001203,Basic of Electrical and Electronics Engineering,BEEE,4,40,Regular,Reg
+it,1,202001206,Constitution of India,COI,0,20,Regular,Reg
+it,1,202001209,Engineering workshop,EW,2,15,Regular,Reg
+it,1,202000104,Professional Communication,PC,3,30,Regular,Reg
+it,2,202001202,Basic Mechanical Engineering,BME,4,40,Regular,Reg
+it,2,202001207,Energy and Environment Science,EES,3,30,Regular,Reg
+it,2,202001208,Engineering Graphics,EG,4,40,Regular,Reg
+it,2,202000211,Linear Algebra Vector Calculus and ODE,LAVCODE,4,40,Regular,Reg
+it,2,202000212,Object Oriented Programming,OOP,4,40,Regular,Reg
+it,2,202001213,Physics,Physics,4,40,Regular,Reg
+it,3,202040301,Data Structures,DS,5,45,Regular,Reg
+it,3,202040302,Database Management Systems,DBMS,5,45,Regular,Reg
+it,3,202040303,Digital Fundamentals,DF,4,40,Regular,Reg
+it,3,202003403,Indian Ethos and Value Education,IEVE,0,10,Regular,Reg
+it,3,202003402,Fundamentals of Economics and Business Management,FEBM,3,35,Regular,Reg
+it,3,202000303,Probability Statistics and Numerical Methods,PSNM,4,40,Regular,Reg
+it,3,900009901,Creativity Problem Solving and Innovation,CPSI,2,15,Regular,Reg
+it,4,202040401,Computer Organization & Architecture,COA,4,40,Regular,Reg
+it,4,202040402,Operating System,OS,4,40,Regular,Reg
+it,4,202040404,Seminar,Seminar,1,10,Regular,Reg
+it,4,202003404,Technical Writing and Soft Skills,TWSS,3,35,Regular,Reg
+it,4,202003405,Entrepreneur Skills,ES,0,10,Regular,Reg
+it,4,202044501,Computer Network,CN,4,40,Regular,Reg
+it,4,202044502,Programming With Java,PWJ,4,40,Regular,Reg
+it,5,202044504,Programming with Python,PWP,4,40,Regular,Reg
+it,5,202044505,Web Development,WD,4,40,Regular,Reg
+it,5,202045601,Design and Analysis of Algorithms,DAA,5,45,Regular,Reg
+it,5,202045602,Software Engineering,SE,4,40,Regular,Reg
+it,5,202045605,Advanced Java Programming,AJP,4,40,Professional Elective,PE
+it,5,202045607,Cyber Security,CS,4,40,Professional Elective,PE
+it,5,202044503,Artificial Intelligence,AI,4,40,Professional Elective,PE
+it,5,202030521,Disaster Management,DM,3,35,Open Elective,OE
+it,5,202050522,Energy Systems,ES,3,35,Open Elective,OE
+it,5,202005603,Probability Theory with Applications,PTA,3,35,Open Elective,OE
+it,5,202090522,Project Management,PM,3,35,Open Elective,OE
+it,6,202040601,Mini Project,MP,2,20,Regular,Reg
+it,6,202046708,Information and Network Security,INS,4,40,Regular,Reg
+it,6,202045609,Machine Learning,ML,4,40,Regular,Reg
+it,6,202046709,Internet of Things,IOT,4,40,Regular,Reg
+it,6,202046701,Advanced Web Development,AWD,4,40,Professional Elective,PE
+it,6,202046705,Computer Vision and Image Processing,CVIP,4,40,Professional Elective,PE
+it,6,202046706,Data Mining and Business Intelligence,DMBI,4,40,Professional Elective,PE
+it,6,202090622,Supply Chain Management,SCM,3,35,Open Elective,OE
+it,6,202060621,Multimedia Systems and Applications,MSA,3,35,Open Elective,OE
+it,6,202030622,Smart Cities Planning and Management,SCPM,3,35,Open Elective,OE
+it,7,202000701,Summer Training,ST,2,28,Regular,Reg
+it,7,202040701,Data Science and Visualization,DSV,4,40,Regular,Reg
+it,7,202046710,Introduction to Cloud Computing,ICC,4,40,Regular,Reg
+it,7,202046712,Mobile Application Development,MAD,4,40,Regular,Reg
+it,7,202046711,Language Processors,LP,4,40,Professional Elective,PE
+it,7,202046715,UI/UX Design,UD,4,40,Professional Elective,PE
+it,7,202047803,Big Data Analytics,BDA,4,40,Professional Elective,PE
+it,7,202047801,Advanced Software Engineering,ASE,4,40,Professional Elective,PE
+it,7,202047804,Deep Learning and Applications,DLA,4,40,Professional Elective,PE
+it,7,202047808,Managment of IT Infrastructure,MITI,4,40,Professional Elective,PE
+it,8,202000801,Industrial Internship,II,16,60,Regular,Reg
+it,8,202040801,Industry-User Defined Project,I/UDP,8,50,Regular,Reg
+it,8,202047802,Augmented Reality and Virtual Reality,AR/VR,4,40,Professional Elective,PE
+it,8,202047805,Geographical Information Systems,GIS,4,40,Professional Elective,PE
+it,8,202047806,High-Performance Computing,HPC,4,40,Professional Elective,PE
+it,8,202047807,Introduction to Software Defined Networking,ISDN,4,40,Professional Elective,PE
+it,8,202047809,Natural Language Processing,NLP,4,40,Professional Elective,PE
+it,8,202047810,Service Oriented Computing,SOC,4,40,Professional Elective,PE

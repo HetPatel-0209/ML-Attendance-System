@@ -10,57 +10,79 @@ import re
 import openpyxl
 
 def load_attendance_data():
-    """Load the ML.xlsx attendance file and format it for processing."""
+    """Load all attendance files and format for processing."""
+    attendance_data = []
     try:
-        # Path to the attendance file
-        file_path = "data/attendanceData/2025/IT/sem6/ML.xlsx"
+        # Path to the attendance files
+        base_path = "data/attendanceData"
         
-        # Check if file exists
-        if not os.path.exists(file_path):
-            print(f"Attendance file not found: {file_path}")
-            return pd.DataFrame(columns=["Name", "Student ID", "Date", "Status"])
-        
-        # Load the workbook
-        workbook = openpyxl.load_workbook(file_path)
-        sheet = workbook.active
-        
-        # Extract data in a format suitable for processing
-        attendance_data = []
-        
-        # Get all column headers (first row)
-        headers = [cell.value for cell in sheet[1]]
-        
-        # Skip processing if sheet is empty or malformed
-        if len(headers) < 3:  # Need at least Name, ID, and one date
-            return pd.DataFrame(columns=["Name", "Student ID", "Date", "Status"])
-        
-        # Process each student row
-        for row_idx in range(2, sheet.max_row + 1):
-            student_name = sheet.cell(row=row_idx, column=1).value
-            student_id = sheet.cell(row=row_idx, column=2).value
-            
-            if not student_name:  # Skip empty rows
+        # Walk through all attendance files
+        for year_dir in os.listdir(base_path):
+            year_path = os.path.join(base_path, year_dir)
+            if not os.path.isdir(year_path):
                 continue
                 
-            # Process each date column (starting from column 3)
-            for col_idx in range(3, sheet.max_column + 1):
-                date = headers[col_idx - 1]  # Column headers are 0-indexed in the list
-                status = sheet.cell(row=row_idx, column=col_idx).value
-                
-                if status == 'P':  # Only include 'Present' records
-                    attendance_data.append({
-                        "Name": student_name,
-                        "Student ID": student_id,
-                        "Date": date,
-                        "Status": "Present"
-                    })
-        
-        # Convert to DataFrame
-        return pd.DataFrame(attendance_data)
-        
+            for branch in os.listdir(year_path):
+                branch_path = os.path.join(year_path, branch)
+                if not os.path.isdir(branch_path):
+                    continue
+                    
+                for sem in os.listdir(branch_path):
+                    sem_path = os.path.join(branch_path, sem)
+                    if not os.path.isdir(sem_path):
+                        continue
+                        
+                    for subject_file in glob.glob(os.path.join(sem_path, "*.xlsx")):
+                        try:
+                            workbook = openpyxl.load_workbook(subject_file)
+                            sheet = workbook.active
+                            subject = os.path.splitext(os.path.basename(subject_file))[0]
+                            
+                            headers = [cell.value for cell in sheet[1]]
+                            
+                            for row_idx in range(2, sheet.max_row + 1):
+                                student_name = sheet.cell(row=row_idx, column=1).value
+                                student_id = sheet.cell(row=row_idx, column=2).value
+                                
+                                if not student_name:
+                                    continue
+                                    
+                                # Process each date column
+                                for col_idx in range(3, sheet.max_column + 1):
+                                    date = headers[col_idx - 1]
+                                    status = sheet.cell(row=row_idx, column=col_idx).value
+                                    
+                                    if status == 'P':
+                                        attendance_data.append({
+                                            "Name": student_name,
+                                            "Student ID": student_id,
+                                            "Date": date,
+                                            "Status": "Present",
+                                            "Year": year_dir,
+                                            "Branch": branch,
+                                            "Semester": sem,
+                                            "Subject": subject
+                                        })
+                                    elif status == '' or status is None:
+                                        attendance_data.append({
+                                            "Name": student_name,
+                                            "Student ID": student_id,
+                                            "Date": date,
+                                            "Status": "Absent",
+                                            "Year": year_dir,
+                                            "Branch": branch,
+                                            "Semester": sem,
+                                            "Subject": subject
+                                        })
+                        except Exception as e:
+                            print(f"Error processing file {subject_file}: {e}")
+                            continue
     except Exception as e:
         print(f"Error loading attendance data: {e}")
-        return pd.DataFrame(columns=["Name", "Student ID", "Date", "Status"])
+    
+    if not attendance_data:
+        return pd.DataFrame(columns=["Name", "Student ID", "Date", "Status", "Year", "Branch", "Semester", "Subject"])
+    return pd.DataFrame(attendance_data)
 
 def load_student_data():
     """Load student details from CSV."""
@@ -69,85 +91,129 @@ def load_student_data():
     except (FileNotFoundError, pd.errors.EmptyDataError):
         return pd.DataFrame(columns=['student_id', 'name', 'course', 'email', 'phone'])
 
-def generate_training_data(attendance_df, students_df):
+def load_subject_data():
+    """Load subject details from CSV."""
+    try:
+        return pd.read_csv('data/subjects.csv')
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        return pd.DataFrame()
+
+def calculate_attendance_stats(attendance_df):
+    """Calculate attendance statistics for each student."""
+    if attendance_df.empty:
+        return pd.DataFrame()
+        
+    stats = attendance_df.groupby(['Name', 'Subject']).agg({
+        'Status': lambda x: (x == 'Present').mean()
+    }).reset_index()
+    
+    stats = stats.rename(columns={'Status': 'Attendance_Percentage'})
+    stats['Attendance_Percentage'] = stats['Attendance_Percentage'] * 100
+    return stats
+
+def generate_training_data(attendance_df, students_df, subjects_df):
     """Generate question-answer pairs for training."""
     qa_pairs = []
     
-    # Make sure we have data
+    # Basic validation
     if attendance_df.empty or students_df.empty:
         print("No data available to generate training examples")
         return qa_pairs
     
-    # Get unique dates and names
-    dates = attendance_df['Date'].unique() if 'Date' in attendance_df.columns else []
-    names = attendance_df['Name'].unique() if 'Name' in attendance_df.columns else []
-    courses = students_df['course'].unique() if 'course' in students_df.columns else []
+    # Calculate attendance statistics
+    stats_df = calculate_attendance_stats(attendance_df)
     
-    # Generate question-answer pairs
-    for name in names:
-        # Questions about attendance on specific dates
-        for date in dates:
-            # Was a student present on a specific date?
-            present = name in attendance_df[attendance_df['Date'] == date]['Name'].values
-            
-            question = f"Was {name} present on {date}?"
-            answer = f"Yes, {name} was present on {date}." if present else f"No, {name} was not present on {date}."
-            qa_pairs.append((question, answer))
-            
-            # Variation
-            question = f"Did {name} attend on {date}?"
-            qa_pairs.append((question, answer))
-        
-        # Questions about student's attendance record
-        student_dates = attendance_df[attendance_df['Name'] == name]['Date'].tolist()
-        if student_dates:
-            question = f"When was {name} present?"
-            answer = f"{name} was present on: {', '.join(map(str, student_dates))}"
-            qa_pairs.append((question, answer))
-            
-            # Variation
-            question = f"Show me {name}'s attendance record"
-            qa_pairs.append((question, answer))
-    
-    # Questions about all students on a specific date
-    for date in dates:
-        present_students = attendance_df[attendance_df['Date'] == date]['Name'].tolist()
-        if present_students:
-            question = f"Who was present on {date}?"
-            answer = f"Students present on {date}: {', '.join(present_students)}"
-            qa_pairs.append((question, answer))
-            
-            # Variation
-            question = f"Show attendance for {date}"
-            qa_pairs.append((question, answer))
-            
-    # Questions about course attendance
-    for course in courses:
-        # Get students in this course
-        course_students = students_df[students_df['course'] == course]['name'].tolist()
-        
-        for date in dates:
-            # Find who from this course was present on the date
-            present_course_students = attendance_df[
-                (attendance_df['Date'] == date) & 
-                (attendance_df['Name'].isin(course_students))
-            ]['Name'].tolist()
-            
-            if present_course_students:
-                question = f"Which {course} students attended on {date}?"
-                answer = f"{course} students present on {date}: {', '.join(present_course_students)}"
-                qa_pairs.append((question, answer))
-    
-    # Questions about student details
+    # 1. Student Information Queries
     for _, student in students_df.iterrows():
+        # Student ID based queries
+        student_id = student['student_id']
         name = student['name']
-        question = f"What course is {name} enrolled in?"
-        answer = f"{name} is enrolled in {student['course']}"
-        qa_pairs.append((question, answer))
         
-        question = f"What is {name}'s student ID?"
-        answer = f"{name}'s student ID is {student['student_id']}"
-        qa_pairs.append((question, answer))
+        # Different variations of enrollment/ID queries
+        id_questions = [
+            f"What is the name of student with enrollment {student_id}?",
+            f"Who has enrollment number {student_id}?",
+            f"Which student has ID {student_id}?",
+            f"Find student with enrollment {student_id}",
+            f"Get details of enrollment {student_id}",
+            f"Student details for ID {student_id}"
+        ]
+        
+        for question in id_questions:
+            answer = f"The student with enrollment {student_id} is {name}"
+            qa_pairs.append((question, answer))
+        
+        # Contact information queries
+        contact_questions = [
+            f"What is {name}'s phone number?",
+            f"Give me contact details of {name}",
+            f"What is the contact number of {name}?",
+            f"How can I contact {name}?",
+            f"What is {name}'s email?",
+            f"What are {name}'s contact details?"
+        ]
+        
+        contact_answer = f"Contact details for {name}: Email: {student['email']}, Phone: {student['phone']}"
+        for question in contact_questions:
+            qa_pairs.append((question, contact_answer))
+    
+    # 2. Subject Code Queries
+    for _, subject in subjects_df.iterrows():
+        subject_name = subject['subject_name']
+        subject_code = subject['subject_code']
+        subject_abbrev = subject['subject_abbrevation']
+        
+        code_questions = [
+            f"What is the subject code for {subject_name}?",
+            f"What is the subject code of {subject_name}?",
+            f"What is the code for {subject_name}?",
+            f"Give me the code for {subject_name}",
+            f"Subject code of {subject_name}?",
+            # Add abbreviation-based queries
+            f"What is the subject code for {subject_abbrev}?",
+            f"What is the code for {subject_abbrev}?"
+        ]
+        
+        code_answer = f"The subject code for {subject_name} ({subject_abbrev}) is {subject_code}"
+        for question in code_questions:
+            qa_pairs.append((question, code_answer))
+    
+    # 3. Attendance Queries
+    for name in students_df['name'].unique():
+        student_attendance = attendance_df[attendance_df['Name'] == name]
+        
+        for subject in subjects_df['subject_name'].unique():
+            subject_attendance = student_attendance[student_attendance['Subject'] == subject]
+            
+            if not subject_attendance.empty:
+                # Present dates in subject
+                present_dates = subject_attendance[subject_attendance['Status'] == 'Present']['Date'].tolist()
+                present_dates_str = ', '.join(sorted(present_dates)) if present_dates else "no dates"
+                
+                question = f"On which dates was {name} present in {subject}?"
+                answer = f"{name} was present in {subject} on: {present_dates_str}"
+                qa_pairs.append((question, answer))
+                
+                # Absent dates in subject
+                absent_dates = subject_attendance[subject_attendance['Status'] == 'Absent']['Date'].tolist()
+                absent_dates_str = ', '.join(sorted(absent_dates)) if absent_dates else "no dates"
+                
+                question = f"On which dates was {name} absent in {subject}?"
+                answer = f"{name} was absent in {subject} on: {absent_dates_str}"
+                qa_pairs.append((question, answer))
+                
+                # Attendance percentage in subject
+                if not stats_df.empty:
+                    subject_stats = stats_df[(stats_df['Name'] == name) & (stats_df['Subject'] == subject)]
+                    if not subject_stats.empty:
+                        percentage = subject_stats.iloc[0]['Attendance_Percentage']
+                        question = f"What is {name}'s attendance in {subject}?"
+                        answer = f"{name}'s attendance in {subject} is {percentage:.1f}%"
+                        qa_pairs.append((question, answer))
+                        
+                        # Add more variations of the same question
+                        question = f"Show me {name}'s attendance record in {subject}"
+                        qa_pairs.append((question, answer))
     
     return qa_pairs
 
@@ -187,8 +253,11 @@ def main():
     print("Loading student data...")
     students_df = load_student_data()
     
+    print("Loading subject data...")
+    subjects_df = load_subject_data()
+    
     print("Generating question-answer pairs...")
-    qa_pairs = generate_training_data(attendance_df, students_df)
+    qa_pairs = generate_training_data(attendance_df, students_df, subjects_df)
     
     print(f"Generated {len(qa_pairs)} question-answer pairs")
     
