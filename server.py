@@ -5,14 +5,18 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import csv
+import sys
+sys.path.append('..')
+from chatbot import get_chat_response
+from flask_cors import CORS
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-
+CORS(app)
 # Data directory structure: data/attendanceData/YYYY/branch/sem/subject/YYYY-MM-DD.xlsx
 
 def get_attendance_path(year, date, branch, sem, subject):
     """Generate the path to the attendance file"""
-    base_dir = os.path.join('..', 'data', 'attendanceData', str(year), str(branch), f"sem{sem}", str(subject))
+    base_dir = os.path.join('data', 'attendanceData', str(year), str(branch), f"sem{sem}", str(subject))
     file_name = f"{date}.xlsx"
     file_path = os.path.join(base_dir, file_name)
     return base_dir, file_path
@@ -21,7 +25,7 @@ def get_student_data():
     """Read student data from CSV file"""
     students = []
     try:
-        csv_path = os.path.join('..', 'data', 'students.csv')
+        csv_path = os.path.join('data', 'students.csv')
         if os.path.exists(csv_path):
             with open(csv_path, 'r') as file:
                 reader = csv.DictReader(file)
@@ -35,7 +39,7 @@ def get_student_data():
 @app.route('/')
 def index():
     """Serve the main HTML page"""
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('web', 'index.html')
 
 @app.route('/api/students', methods=['GET'])
 def get_students():
@@ -57,7 +61,7 @@ def get_subjects():
         return jsonify({'error': 'Missing required parameters'}), 400
         
     # Get path to semester directory
-    path = os.path.join('..', 'data', 'attendanceData', str(year), str(branch), f"sem{sem}")
+    path = os.path.join('data', 'attendanceData', str(year), str(branch), f"sem{sem}")
     
     # Get all Excel files (subjects) in the directory
     if os.path.exists(path):
@@ -81,7 +85,7 @@ def handle_attendance():
             return jsonify({'error': 'Missing required parameters'}), 400
         
         # Get file path - note we're getting the subject file, not a date-specific file
-        file_path = os.path.join('..', 'data', 'attendanceData', str(year), str(branch), f"sem{sem}", f"{subject}.xlsx")
+        file_path = os.path.join('data', 'attendanceData', str(year), str(branch), f"sem{sem}", f"{subject}.xlsx")
         
         # Check if file exists
         if not os.path.exists(file_path):
@@ -135,15 +139,15 @@ def handle_attendance():
             }
             
             # Save to webTest folder as text file
-            os.makedirs('../data/webTest', exist_ok=True)
-            test_file_path = os.path.join('..', 'data', 'webTest', f'attendance_submission_{timestamp}.txt')
+            os.makedirs('data/webTest', exist_ok=True)
+            test_file_path = os.path.join('data', 'webTest', f'attendance_submission_{timestamp}.txt')
             
             with open(test_file_path, 'w') as f:
                 for key, value in web_test_data.items():
                     f.write(f"{key}: {value}\n")
             
             # Also save to the main attendance system
-            main_path = os.path.join('..', 'data', 'attendanceData', str(data['year']), 
+            main_path = os.path.join('data', 'attendanceData', str(data['year']), 
                                    str(data['branch']), f"sem{data['sem']}", f"{data['subject']}.xlsx")
             
             try:
@@ -152,7 +156,7 @@ def handle_attendance():
                     df = pd.read_excel(main_path)
                 else:
                     # Get students from CSV
-                    students_df = pd.read_csv('../data/students.csv')
+                    students_df = pd.read_csv('data/students.csv')
                     df = pd.DataFrame({
                         'Name': students_df['name'],
                         'Enrollment': students_df['student_id']
@@ -175,6 +179,23 @@ def handle_attendance():
             
         except Exception as e:
             return jsonify({'error': f'Error saving attendance data: {str(e)}'}), 500
+        
+@app.route('/api/chat', methods=['POST'])
+def handle_chat():
+    """Handle chatbot queries from the web interface"""
+    data = request.json
+    if not data or 'question' not in data:
+        return jsonify({'error': 'Missing question parameter'}), 400
+    
+    question = data['question'].strip()
+    if not question:
+        return jsonify({'error': 'Empty question'}), 400
+    
+    try:
+        answer = get_chat_response(question)
+        return jsonify({'question': question, 'answer': answer})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

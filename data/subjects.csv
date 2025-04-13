@@ -1,4 +1,4 @@
-branch,semester,subject_code,subject_name,subject_abbrevation,credits,total_classes,type,type_abbreviation
+branch,semester,subject_code,subject_name,subject_abbrevation,credits,total_classes,subject_type,subject_type_abbreviation
 it,1,202000104,Calculus,Calculus,4,40,Regular,Reg
 it,1,202000110,Computer Programming with C,CPC,4,40,Regular,Reg
 it,1,202001203,Basic of Electrical and Electronics Engineering,BEEE,4,40,Regular,Reg

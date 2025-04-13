@@ -156,12 +156,40 @@ def generate_training_data(attendance_df, students_df, subjects_df):
         contact_answer = f"Contact details for {name}: Email: {student['email']}, Phone: {student['phone']}"
         for question in contact_questions:
             qa_pairs.append((question, contact_answer))
+            
+        # Email specific queries
+        email_questions = [
+            f"What is {name}'s email address?",
+            f"Tell me the email of {name}",
+            f"What's the email for {name}?"
+        ]
+        
+        email_answer = f"{name}'s email address is {student['email']}"
+        for question in email_questions:
+            qa_pairs.append((question, email_answer))
+            
+        # Course enrollment queries
+        course_questions = [
+            f"Which course is {name} enrolled in?",
+            f"What is {name}'s course?",
+            f"What branch is {name} in?"
+        ]
+        
+        course_answer = f"{name} is enrolled in {student['course']}"
+        for question in course_questions:
+            qa_pairs.append((question, course_answer))
     
     # 2. Subject Code Queries
     for _, subject in subjects_df.iterrows():
         subject_name = subject['subject_name']
         subject_code = subject['subject_code']
         subject_abbrev = subject['subject_abbrevation']
+        credits = subject['credits']
+        branch = subject['branch']
+        semester = subject['semester']
+        subject_type = subject['subject_type']
+        subject_type_abbreviation = subject['subject_type_abbreviation']
+        total_classes = subject.get('total_classes', 'unknown')
         
         code_questions = [
             f"What is the subject code for {subject_name}?",
@@ -169,14 +197,52 @@ def generate_training_data(attendance_df, students_df, subjects_df):
             f"What is the code for {subject_name}?",
             f"Give me the code for {subject_name}",
             f"Subject code of {subject_name}?",
-            # Add abbreviation-based queries
             f"What is the subject code for {subject_abbrev}?",
-            f"What is the code for {subject_abbrev}?"
+            f"What is the code for {subject_abbrev}?",
+            f"How many {subject_type_abbreviation} subjects are there in {branch} branch?",
+            f"How many {subject_type_abbreviation} subjects are there in {branch} branch in {semester} semester?"
+            f"How many {subject_type} subjects are there in {branch} branch?",
+            f"How many {subject_type} subjects are there in {branch} branch in {semester} semester?"
         ]
         
         code_answer = f"The subject code for {subject_name} ({subject_abbrev}) is {subject_code}"
         for question in code_questions:
             qa_pairs.append((question, code_answer))
+            
+        # Credit-related queries
+        credit_questions = [
+            f"How many credits does {subject_name} carry?",
+            f"What is the credit value of {subject_name}?",
+            f"How many credits is {subject_abbrev} worth?",
+            f"Tell me the credits for {subject_name}"
+        ]
+        
+        credit_answer = f"{subject_name} ({subject_abbrev}) carries {credits} credits"
+        for question in credit_questions:
+            qa_pairs.append((question, credit_answer))
+            
+        # Class count queries
+        class_questions = [
+            f"How many total classes are there for {subject_name}?",
+            f"What is the total number of classes for {subject_abbrev}?",
+            f"How many classes does {subject_name} have?"
+        ]
+        
+        class_answer = f"{subject_name} ({subject_abbrev}) has {total_classes} total classes"
+        for question in class_questions:
+            qa_pairs.append((question, class_answer))
+            
+        # Subject type queries
+        type_questions = [
+            f"Is {subject_name} an elective?",
+            f"What type of subject is {subject_name}?",
+            f"Is {subject_abbrev} a regular subject or an elective?",
+            f"Is {subject_name} a Professional Elective or Open Elective?"
+        ]
+        
+        type_answer = f"{subject_name} ({subject_abbrev}) is a {subject_type} subject"
+        for question in type_questions:
+            qa_pairs.append((question, type_answer))
     
     # 3. Attendance Queries
     for name in students_df['name'].unique():
@@ -202,6 +268,20 @@ def generate_training_data(attendance_df, students_df, subjects_df):
                 answer = f"{name} was absent in {subject} on: {absent_dates_str}"
                 qa_pairs.append((question, answer))
                 
+                # Attendance on specific date
+                for date in set(present_dates + absent_dates):
+                    status = "present" if date in present_dates else "absent"
+                    questions = [
+                        f"Was {name} present in the {subject} class on {date}?",
+                        f"Did {name} attend {subject} class on {date}?",
+                        f"Show {name}'s attendance record for {subject} on {date}",
+                        f"What was {name}'s attendance status for {subject} on {date}?"
+                    ]
+                    
+                    answer = f"{name} was {status} in the {subject} class on {date}"
+                    for q in questions:
+                        qa_pairs.append((q, answer))
+                
                 # Attendance percentage in subject
                 if not stats_df.empty:
                     subject_stats = stats_df[(stats_df['Name'] == name) & (stats_df['Subject'] == subject)]
@@ -214,6 +294,153 @@ def generate_training_data(attendance_df, students_df, subjects_df):
                         # Add more variations of the same question
                         question = f"Show me {name}'s attendance record in {subject}"
                         qa_pairs.append((question, answer))
+                        
+                        question = f"Calculate {name}'s total attendance percentage in {subject}"
+                        qa_pairs.append((question, answer))
+    
+    # 4. Semester Subject Queries
+    for branch in subjects_df['branch'].unique():
+        for semester in subjects_df['semester'].unique():
+            # Filter subjects for this branch and semester
+            sem_subjects = subjects_df[(subjects_df['branch'] == branch) & 
+                                      (subjects_df['semester'] == semester)]
+            
+            if not sem_subjects.empty:
+                # All subjects in semester
+                subject_list = ", ".join(sem_subjects['subject_name'].tolist())
+                questions = [
+                    f"Which subjects are offered in Semester {semester} for {branch.upper()}?",
+                    f"List all subjects in Semester {semester} for {branch.upper()}",
+                    f"What subjects are taught in Sem {semester} {branch.upper()}?"
+                ]
+                
+                answer = f"Subjects offered in Semester {semester} for {branch.upper()}: {subject_list}"
+                for q in questions:
+                    qa_pairs.append((q, answer))
+                
+                # Elective subjects in semester
+                pe_subjects = sem_subjects[sem_subjects['subject_type'] == 'Professional Elective']
+                oe_subjects = sem_subjects[sem_subjects['subject_type'] == 'Open Elective']
+                
+                if not pe_subjects.empty:
+                    pe_list = ", ".join(pe_subjects['subject_name'].tolist())
+                    pe_questions = [
+                        f"List all Professional Elective (PE) subjects in Semester {semester}",
+                        f"What are the Professional Electives for Semester {semester}?",
+                        f"Which PE subjects are available in Sem {semester}?"
+                    ]
+                    
+                    pe_answer = f"Professional Elective subjects in Semester {semester}: {pe_list}"
+                    for q in pe_questions:
+                        qa_pairs.append((q, pe_answer))
+                
+                if not oe_subjects.empty:
+                    oe_list = ", ".join(oe_subjects['subject_name'].tolist())
+                    oe_count = len(oe_subjects)
+                    
+                    oe_questions = [
+                        f"List all Open Elective (OE) subjects in Semester {semester}",
+                        f"What are the Open Electives for Semester {semester}?",
+                        f"How many Open Elective (OE) subjects are available in Semester {semester}?"
+                    ]
+                    
+                    oe_answer = f"There are {oe_count} Open Elective subjects in Semester {semester}: {oe_list}"
+                    for q in oe_questions:
+                        qa_pairs.append((q, oe_answer))
+                
+                # Regular subjects
+                reg_subjects = sem_subjects[sem_subjects['subject_type'] == 'Regular']
+                if not reg_subjects.empty:
+                    reg_list = ", ".join(reg_subjects['subject_name'].tolist())
+                    reg_questions = [
+                        f"Which subjects in Semester {semester} are labeled 'Regular'?",
+                        f"List all Regular subjects in Sem {semester}"
+                    ]
+                    
+                    reg_answer = f"Regular subjects in Semester {semester}: {reg_list}"
+                    for q in reg_questions:
+                        qa_pairs.append((q, reg_answer))
+                
+                # Credit distribution
+                total_credits = sem_subjects['credits'].astype(int).sum()
+                credit_questions = [
+                    f"What is the credit distribution for Semester {semester} subjects?",
+                    f"What is the total number of credits required to complete Semester {semester}?",
+                    f"How many credits in total for Sem {semester}?"
+                ]
+                
+                credits_by_subject = [f"{row['subject_name']} ({row['credits']} credits)" 
+                                     for _, row in sem_subjects.iterrows()]
+                credit_distrib = ", ".join(credits_by_subject)
+                
+                credit_answer = f"Total credits for Semester {semester}: {total_credits}. Distribution: {credit_distrib}"
+                for q in credit_questions:
+                    qa_pairs.append((q, credit_answer))
+                
+                # Zero-credit subjects
+                zero_cred = sem_subjects[sem_subjects['credits'] == '0']
+                if not zero_cred.empty:
+                    zero_list = ", ".join(zero_cred['subject_name'].tolist())
+                    zero_questions = [
+                        f"Are there any zero-credit subjects in Semester {semester}?",
+                        f"Which subjects in Sem {semester} have zero credits?",
+                        f"List all zero-credit courses in Semester {semester}"
+                    ]
+                    
+                    zero_answer = f"Zero-credit subjects in Semester {semester}: {zero_list}"
+                    for q in zero_questions:
+                        qa_pairs.append((q, zero_answer))
+                else:
+                    zero_questions = [
+                        f"Are there any zero-credit subjects in Semester {semester}?",
+                        f"Does Sem {semester} have any zero-credit courses?"
+                    ]
+                    
+                    zero_answer = f"There are no zero-credit subjects in Semester {semester}"
+                    for q in zero_questions:
+                        qa_pairs.append((q, zero_answer))
+    
+    # 5. Adding more advanced queries - cross-referencing and analysis
+    # Subject with highest number of classes
+    if 'total_classes' in subjects_df.columns:
+        for semester in subjects_df['semester'].unique():
+            sem_subjects = subjects_df[subjects_df['semester'] == semester]
+            if not sem_subjects.empty:
+                sem_subjects.loc[:, 'total_classes'] = sem_subjects['total_classes'].astype(int)
+                max_classes_subject = sem_subjects.loc[sem_subjects['total_classes'].idxmax()]
+                
+                questions = [
+                    f"Which subject has the highest number of classes in Semester {semester}?",
+                    f"What is the subject with most classes in Sem {semester}?"
+                ]
+                
+                answer = f"The subject with the highest number of classes in Semester {semester} is {max_classes_subject['subject_name']} with {max_classes_subject['total_classes']} classes"
+                for q in questions:
+                    qa_pairs.append((q, answer))
+    
+    # Total number of electives across semesters
+    pe_count = len(subjects_df[subjects_df['subject_type'] == 'Professional Elective'])
+    oe_count = len(subjects_df[subjects_df['subject_type'] == 'Open Elective'])
+    
+    elective_questions = [
+        "What is the total number of Professional Electives across all semesters?",
+        "How many PE subjects are offered in total?",
+        "How many Professional Elective courses are available?"
+    ]
+    
+    elective_answer = f"There are {pe_count} Professional Elective subjects available across all semesters"
+    for q in elective_questions:
+        qa_pairs.append((q, elective_answer))
+    
+    oe_questions = [
+        "What is the total number of Open Electives across all semesters?",
+        "How many OE subjects are offered in total?",
+        "How many Open Elective courses are available?"
+    ]
+    
+    oe_answer = f"There are {oe_count} Open Elective subjects available across all semesters"
+    for q in oe_questions:
+        qa_pairs.append((q, oe_answer))
     
     return qa_pairs
 

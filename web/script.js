@@ -1,12 +1,12 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Get current year and set it as default
     const currentYear = new Date().getFullYear();
     document.getElementById('year').value = currentYear;
-    
+
     // Set today's date as default
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('date').value = today;
-    
+
     // Add event listeners
     document.getElementById('branch').addEventListener('change', handleBranchChange);
     document.getElementById('sem').addEventListener('change', handleSemesterChange);
@@ -14,14 +14,58 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('submitBtn').addEventListener('click', submitAttendance);
     document.getElementById('selectAllBtn').addEventListener('click', selectAll);
     document.getElementById('unselectAllBtn').addEventListener('click', unselectAll);
+    document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
+    document.getElementById('chatInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') sendChatMessage();
+    });
 });
+
+function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const question = input.value.trim();
+    const chatMessages = document.getElementById('chatMessages');
+
+    if (!question) return;
+
+    // Add user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'chat-message user-message';
+    userDiv.textContent = `You: ${question}`;
+    chatMessages.appendChild(userDiv);
+
+    // Clear input
+    input.value = '';
+
+    // Send to server
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question: question })
+    })
+        .then(response => response.json())
+        .then(data => {
+            const botDiv = document.createElement('div');
+            botDiv.className = 'chat-message bot-message';
+            botDiv.textContent = `Bot: ${data.answer}`;
+            chatMessages.appendChild(botDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        })
+        .catch(error => {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'chat-message bot-message';
+            errorDiv.textContent = 'Error getting response';
+            chatMessages.appendChild(errorDiv);
+        });
+}
 
 function handleBranchChange() {
     const branch = document.getElementById('branch').value;
     // Clear subject dropdown
     const subjectSelect = document.getElementById('subject');
     subjectSelect.innerHTML = '<option value="">Select Subject</option>';
-    
+
     // Load students for selected branch
     if (branch) {
         loadStudents(branch);
@@ -34,7 +78,7 @@ function handleSemesterChange() {
     const year = document.getElementById('year').value;
     const branch = document.getElementById('branch').value;
     const sem = document.getElementById('sem').value;
-    
+
     if (year && branch && sem) {
         loadSubjects(year, branch, sem);
     }
@@ -43,7 +87,7 @@ function handleSemesterChange() {
 function loadSubjects(year, branch, sem) {
     const subjectSelect = document.getElementById('subject');
     subjectSelect.innerHTML = '<option value="">Loading subjects...</option>';
-    
+
     fetch(`/api/subjects?year=${year}&branch=${branch}&sem=${sem}`)
         .then(response => response.json())
         .then(subjects => {
@@ -64,11 +108,14 @@ function loadSubjects(year, branch, sem) {
 function loadStudents(branch) {
     const studentsList = document.getElementById('studentsList');
     studentsList.innerHTML = '<p>Loading students...</p>';
-    
+
     fetch(`/api/students?branch=${branch}`)
         .then(response => response.json())
         .then(students => {
             if (students.length > 0) {
+                students.sort((a, b) =>
+                    a.student_id.localeCompare(b.student_id, undefined, { numeric: true })
+                );
                 generateStudentCheckboxes(students);
             } else {
                 studentsList.innerHTML = '<p>No students found for selected branch</p>';
@@ -82,21 +129,22 @@ function loadStudents(branch) {
 
 function generateStudentCheckboxes(students) {
     const studentsList = document.getElementById('studentsList');
+    console.log(studentsList);
     studentsList.innerHTML = '';
-    
+
     students.forEach(student => {
         const studentItem = document.createElement('div');
         studentItem.className = 'student-item';
-        
+
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = `student-${student.student_id}`;
         checkbox.value = student.student_id;
-        
+
         const label = document.createElement('label');
         label.htmlFor = `student-${student.student_id}`;
         label.textContent = `${student.student_id} - ${student.name}`;
-        
+
         studentItem.appendChild(checkbox);
         studentItem.appendChild(label);
         studentsList.appendChild(studentItem);
@@ -126,19 +174,19 @@ function fetchAttendance() {
     const branch = document.getElementById('branch').value;
     const sem = document.getElementById('sem').value;
     const subject = document.getElementById('subject').value;
-    
+
     // Validate inputs
     if (!date || !branch || !sem || !subject) {
         showMessage('Please fill all required fields', 'error');
         return;
     }
-    
+
     // Clear previous attendance data
     unselectAll();
-    
+
     // Show loading message
     showMessage('Fetching attendance data...', '');
-    
+
     // Fetch data from server
     fetch(`/api/attendance?year=${year}&date=${date}&branch=${branch}&sem=${sem}&subject=${subject}`)
         .then(response => {
@@ -178,17 +226,17 @@ function submitAttendance() {
     const branch = document.getElementById('branch').value;
     const sem = document.getElementById('sem').value;
     const subject = document.getElementById('subject').value;
-    
+
     // Validate inputs
     if (!date || !branch || !sem || !subject) {
         showMessage('Please fill all required fields', 'error');
         return;
     }
-    
+
     // Get selected students
     const checkboxes = document.querySelectorAll('.student-item input[type="checkbox"]:checked');
     const presentStudents = Array.from(checkboxes).map(cb => cb.value);
-    
+
     // Prepare data to send
     const data = {
         year: year,
@@ -198,10 +246,10 @@ function submitAttendance() {
         subject: subject,
         present_students: presentStudents
     };
-    
+
     // Show loading message
     showMessage('Submitting attendance data...', '');
-    
+
     // Send data to server
     fetch('/api/attendance', {
         method: 'POST',
@@ -210,19 +258,19 @@ function submitAttendance() {
         },
         body: JSON.stringify(data)
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        showMessage('Attendance submitted successfully', 'success');
-    })
-    .catch(error => {
-        console.error('Error submitting attendance:', error);
-        showMessage('Error submitting attendance data', 'error');
-    });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            showMessage('Attendance submitted successfully', 'success');
+        })
+        .catch(error => {
+            console.error('Error submitting attendance:', error);
+            showMessage('Error submitting attendance data', 'error');
+        });
 }
 
 // Display status messages
@@ -230,11 +278,11 @@ function showMessage(message, type) {
     const messageElement = document.getElementById('message');
     messageElement.textContent = message;
     messageElement.className = 'message';
-    
+
     if (type) {
         messageElement.classList.add(type);
     }
-    
+
     // Auto-hide success messages after 3 seconds
     if (type === 'success') {
         setTimeout(() => {
